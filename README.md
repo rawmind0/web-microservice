@@ -18,8 +18,6 @@ PUBLISH_PORT=${PUBLISH_PORT:-8080}
 
 Values could be overwrite before generate files.
 
-## Example
-
 ```
 ./docker-compose.yml.tmpl
 ./rancher-compose.yml.tmpl

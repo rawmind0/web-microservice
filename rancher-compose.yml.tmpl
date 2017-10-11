@@ -9,7 +9,7 @@ fi
 RANCHER_COMPOSE=${RANCHER_COMPOSE:-"rancher-compose.yml"}
 PUBLISH_PORT=${PUBLISH_PORT:-8080}
 
-echo "Generating ${RANCHER_COMPOSE} with FROM ${DOCKER_FROM} ..."
+echo "Generating ${RANCHER_COMPOSE} ..."
 
 cat << EOF > ${RANCHER_COMPOSE}
 version: '2'
