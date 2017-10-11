@@ -1,5 +1,5 @@
-web-microservices
-============
+web-microservice
+================
 
 This repo geenrates docker-compose and rancher-compose files on pipeline.
 
@@ -20,5 +20,7 @@ Values could be overwrite before generate files.
 
 ## Example
 
+```
 ./docker-compose.yml.tmpl
 ./rancher-compose.yml.tmpl
+```
