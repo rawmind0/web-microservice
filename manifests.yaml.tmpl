@@ -1,0 +1,113 @@
+#!/usr/bin/env bash
+
+if [ -n "$1" ]; then
+  if [ -f "$1" ]; then
+    source $1
+  fi
+fi
+
+K8S_KUSTOMIZE=${K8S_KUSTOMIZE:-"kustomize.yaml"}
+DOCKER_SHIPPING=${DOCKER_SHIPPING:-"rawmind/web-shipping:0.1-2"}
+DOCKER_PAYMENTS=${DOCKER_PAYMENTS:-"rawmind/web-payments:0.1-5"}
+DOCKER_INVENTORY=${DOCKER_INVENTORY:-"rawmind/web-inventory:0.2-3"}
+DOCKER_GATEWAY=${DOCKER_GATEWAY:-"rawmind/web-gateway:0.2-0"}
+
+K8S_COMPONENT=(shipping payments inventory gateway)
+IMAGE[shipping]=${DOCKER_SHIPPING}
+IMAGE[payments]=${DOCKER_PAYMENTS}
+IMAGE[inventory]=${DOCKER_INVENTORY}
+IMAGE[gateway]=${DOCKER_GATEWAY}
+
+echo "Generating kustomize/${K8S_KUSTOMIZE} ..."
+
+cat << EOF > kustomize/${K8S_KUSTOMIZE}
+resources:
+- manifests
+EOF
+
+for SERVICE in ${K8S_COMPONENT[@]}; do
+    echo "Generating kustomize/manifests/${SERVICE}.yaml ..."
+    cat << EOF > kustomize/manifests/${SERVICE}.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: ${SERVICE}
+  name: ${SERVICE}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ${SERVICE}
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: hello-world
+    spec:
+      containers:
+      - image: ${IMAGE[${SERVICE}]}
+        imagePullPolicy: IfNotPresent
+        name: ${SERVICE}
+        ports:
+        - name: http-port
+          containerPort: 8080
+          protocol: TCP
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "50m"
+          limits:
+            memory: "128Mi"
+            cpu: "100m"
+        livenessProbe:
+          tcpSocket:
+            port: http-port
+          initialDelaySeconds: 15
+          periodSeconds: 20
+        readinessProbe:
+          httpGet:
+            path: /
+            port: http-port
+          initialDelaySeconds: 15
+          periodSeconds: 20
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ${SERVICE}
+spec:
+  ports:
+  - name: http-port
+    port: 8080
+    protocol: TCP
+    targetPort: 8080
+  selector:
+    app: ${SERVICE}
+  type: ClusterIP
+EOF
+done
+
+cat << EOF > kustomize/manifests/ingress.yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: gateway
+spec:
+  rules:
+  - host: gateway.test.dev
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: gateway
+            port:
+              name: http-port
+EOF
+
